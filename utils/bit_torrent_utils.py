@@ -13,7 +13,7 @@ import time
 
 
 class BitTorrent:
-    def __init__(self, config):
+    def __init__(self, config: ReadConfig):
         self.host = config.get_transmission_config('transmission-host')
         self.port = config.get_transmission_config('transmission-port')
         self.username = config.get_transmission_config('transmission-username')
