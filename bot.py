@@ -286,14 +286,14 @@ class TorrentBot(ContextDecorator):
         torrent_len = len(torrent_list) + add_num
         if torrent_len <= self.max_torrent_count:
             return
-        torrent_list.sort(key=lambda x: (x.activity_date, x.rate_upload))
+        torrent_list.sort(key=lambda x: (x.date_active, x.rateUpload))
         while torrent_len > self.max_torrent_count and len(torrent_list) > 0:
             remove_torrent_info = torrent_list.pop(0)
             if remove_torrent_info.status.checking:
                 continue
             # rateUpload > 500KB/s
             if (remove_torrent_info.status.downloading or remove_torrent_info.status.seeding) and \
-                    remove_torrent_info.rate_upload > 500000:
+                    remove_torrent_info.rateUpload > 500000:
                 continue
 
             if remove_torrent_info.download_dir == bit_torrent.download_path:
@@ -379,8 +379,22 @@ class TorrentBot(ContextDecorator):
             torrents_soup = None
             torrent_infos = None
             try:
+                proxy_config = self.config.get_proxy_config("proxy")
+                proxy = (
+                    {}
+                    if proxy_config["proxy-enable"] is False
+                    else {
+                        "https": proxy_config["proxy-username"]
+                        + ":"
+                        + proxy_config["proxy-password"]
+                        + "@"
+                        + proxy_config["proxy-host"]
+                        + ":"
+                        + proxy_config["proxy-port"],
+                    }
+                )
                 torrents_soup = BeautifulSoup(
-                    requests.get(self.torrent_url, cookies=self.cookie_jar, headers=self.headers).content,
+                    requests.get(self.torrent_url, cookies=self.cookie_jar, headers=self.headers, proxies=proxy).content,
                     features="lxml")
                 flag = True
             except Exception as e:
@@ -445,7 +459,7 @@ class TorrentBot(ContextDecorator):
             return True
 
         print('insufficient disk space, try to remove some torrent...')
-        torrent_list.sort(key=lambda x: (x.activity_date, x.rate_upload))
+        torrent_list.sort(key=lambda x: (x.date_active, x.rateUpload))
         while (free_space <= new_torrent_size or sum_size + new_torrent_size > self.max_torrent_total_size) \
                 and len(torrent_list) > 0:
             remove_torrent_info = torrent_list.pop(0)
@@ -453,7 +467,7 @@ class TorrentBot(ContextDecorator):
                 continue
             # rateUpload > 500KB/s
             if (remove_torrent_info.status.downloading or remove_torrent_info.status.seeding) and \
-                    remove_torrent_info.rate_upload > 500000:
+                    remove_torrent_info.rateUpload > 500000:
                 continue
 
             if remove_torrent_info.download_dir == bit_torrent.download_path:
@@ -481,14 +495,14 @@ class TorrentBot(ContextDecorator):
             if torrent_list is None:
                 print('get torrent list fail!')
                 return False
-            torrent_list.sort(key=lambda x: (x.activity_date, x.rate_upload))
+            torrent_list.sort(key=lambda x: (x.date_active, x.rateUpload))
             while free_space <= threshold and len(torrent_list) > 0:
                 remove_torrent_info = torrent_list.pop(0)
                 if remove_torrent_info.status.checking:
                     continue
                 # rateUpload > 500KB/s
                 if (remove_torrent_info.status.downloading or remove_torrent_info.status.seeding) and \
-                        remove_torrent_info.rate_upload > 500000:
+                        remove_torrent_info.rateUpload > 500000:
                     continue
 
                 if remove_torrent_info.download_dir == bit_torrent.download_path:

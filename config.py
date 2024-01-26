@@ -38,6 +38,10 @@ class ReadConfig:
     def get_transmission_config(self, param):
         value = self.cf.get("Transmission", param, fallback=None)
         return value
+    
+    def get_proxy_config(self, param):
+        value = self.cf.get("Proxy", param, fallback=None)
+        return value
 
 
 if __name__ == '__main__':

@@ -4,3 +4,5 @@
 transmission/downloads
 transmission/watch
 __pycache__
+
+config/config.ini
