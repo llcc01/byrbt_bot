@@ -30,7 +30,7 @@ class ReadConfig:
         self.cf = configparser.ConfigParser()
         self.cf.read(config_path, encoding='utf8')
         _print_config(self.cf)
-        print(self.get_proxy())
+        print("proxy", self.get_proxy())
 
     def get_bot_config(self, param):
         value = self.cf.get("ByrBTBot", param, fallback=None)

@@ -15,10 +15,10 @@ import pickle
 import time
 import os
 import traceback
-from utils.decaptcha import DeCaptcha
+# from utils.decaptcha import DeCaptcha
 
-decaptcha = DeCaptcha()
-decaptcha.load_model('utils/captcha_classifier.pkl')
+# decaptcha = DeCaptcha()
+# decaptcha.load_model('utils/captcha_classifier.pkl')
 
 
 class LoginTool:
@@ -59,15 +59,15 @@ class LoginTool:
 
             img_url = None
             captcha_text = None
-            try:
-                img_url = self.base_url + login_soup.select('tr:nth-child(3) > td:nth-child(2) > img')[0].attrs['src']
-                img_file = Image.open(BytesIO(session.get(img_url).content))
+            # try:
+            #     img_url = self.base_url + login_soup.select('tr:nth-child(3) > td:nth-child(2) > img')[0].attrs['src']
+            #     img_file = Image.open(BytesIO(session.get(img_url).content))
 
-                captcha_text = decaptcha.decode(img_file)
-                print('captcha_text:', captcha_text)
-            except Exception as e:
-                print('captcha error:', e)
-                traceback.print_exc()
+            #     captcha_text = decaptcha.decode(img_file)
+            #     print('captcha_text:', captcha_text)
+            # except Exception as e:
+            #     print('captcha error:', e)
+            #     traceback.print_exc()
                 
 
             login_res = session.post(self.get_url('takelogin.php'),
