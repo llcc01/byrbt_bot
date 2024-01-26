@@ -14,6 +14,7 @@ from io import BytesIO
 import pickle
 import time
 import os
+import traceback
 from utils.decaptcha import DeCaptcha
 
 decaptcha = DeCaptcha()
@@ -45,24 +46,37 @@ class LoginTool:
             byrbt_cookies = self.login()
 
         return byrbt_cookies
+    
+    def refresh_cookie(self):
+        byrbt_cookies = self.login()
+        return byrbt_cookies
 
     def login(self):
         session = requests.session()
-        for i in range(5):
+        for _ in range(5):
             login_content = session.get(self.login_url)
             login_soup = BeautifulSoup(login_content.text, 'lxml')
 
-            img_url = self.base_url + login_soup.select('tr:nth-child(3) > td:nth-child(2) > img')[0].attrs['src']
-            img_file = Image.open(BytesIO(session.get(img_url).content))
+            img_url = None
+            captcha_text = None
+            try:
+                img_url = self.base_url + login_soup.select('tr:nth-child(3) > td:nth-child(2) > img')[0].attrs['src']
+                img_file = Image.open(BytesIO(session.get(img_url).content))
 
-            captcha_text = decaptcha.decode(img_file)
+                captcha_text = decaptcha.decode(img_file)
+                print('captcha_text:', captcha_text)
+            except Exception as e:
+                print('captcha error:', e)
+                traceback.print_exc()
+                
 
             login_res = session.post(self.get_url('takelogin.php'),
                                      headers=self.headers,
-                                     data=dict(username=str(self.config.get_bot_config("username")),
+                                     data=dict(logintype='username',
+                                               userinput=str(self.config.get_bot_config("username")),
                                                password=str(self.config.get_bot_config("passwd")),
                                                imagestring=captcha_text,
-                                               imagehash=img_url.split('=')[-1]))
+                                               imagehash=img_url and img_url.split('=')[-1]))
             if '最近消息' in login_res.text:
                 cookies = {}
                 for k, v in session.cookies.items():
@@ -71,6 +85,14 @@ class LoginTool:
                 with open(self.cookie_save_path, 'wb') as f:
                     pickle.dump(cookies, f)
                 return cookies
+            else:
+                print('login fail!')
+                print(self.config.get_bot_config("username"))
+                print(self.config.get_bot_config("passwd"))
+                print(captcha_text)
+                print(img_url)
+                print(login_res.text)
+                return None
 
             time.sleep(1)
 

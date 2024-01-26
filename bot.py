@@ -21,6 +21,7 @@ from contextlib import ContextDecorator
 from requests.cookies import RequestsCookieJar
 from bs4 import BeautifulSoup
 from transmission_rpc import Torrent
+import traceback
 
 from utils.bit_torrent_utils import BitTorrent
 
@@ -148,6 +149,7 @@ class TorrentBot(ContextDecorator):
         except Exception as e:
             print("user info not found!")
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
 
     def get_torrent_info_filter_by_tag(self, table, filter_tags):
         assert isinstance(table, list)
@@ -262,17 +264,14 @@ class TorrentBot(ContextDecorator):
                     continue
                 ok_infos.append(torrent_info)
         else:
-            # 正常种子选择标准是免费种子并且(下载数/上传数)>0.6
+            # 正常种子选择标准是免费种子并且 下载数 > 10
             for torrent_info in torrent_infos:
                 if torrent_info['seed_id'] in self.old_torrent:
                     continue
                 # 下载1GB-1TB之间的种子（下载以GB大小结尾的种子，脚本需要不可修改）
                 if 'GiB' not in torrent_info['file_size'][0]:
                     continue
-                if torrent_info['seeding'] <= 0 or torrent_info['downloading'] < 0:
-                    continue
-                if torrent_info['seeding'] != 0 and float(torrent_info['downloading']) / float(
-                        torrent_info['seeding']) < 0.6:
+                if torrent_info['seeding'] != 0 and torrent_info['downloading'] < 10:
                     continue
                 ok_infos.append(torrent_info)
         return ok_infos
@@ -312,13 +311,16 @@ class TorrentBot(ContextDecorator):
         r = None
         for _ in range(5):
             try:
-                r = requests.get(download_url, cookies=self.cookie_jar, headers=self.headers)
+                r = requests.get(download_url, cookies=self.cookie_jar, headers=self.headers, proxies=config.get_proxy(), allow_redirects=False)
+                if r.status_code == 302:
+                    raise Exception('need login!')
                 flag = True
                 break
             except Exception as e:
                 print('[ERROR] ' + repr(e))
+                traceback.print_exc()
                 print('try login...')
-                self.byrbt_cookies = self.login.load_cookie()
+                self.byrbt_cookies = self.login.refresh_cookie()
                 if self.byrbt_cookies is not None:
                     self.cookie_jar = RequestsCookieJar()
                     for k, v in self.byrbt_cookies.items():
@@ -360,8 +362,8 @@ class TorrentBot(ContextDecorator):
             return False
 
     def start(self):
-        scan_interval_in_sec = 60
-        check_disk_space_interval_in_sec = 500
+        scan_interval_in_sec = 600
+        check_disk_space_interval_in_sec = 3600
         last_check_disk_space_time = -1
         while True:
             now_time = int(time.time())
@@ -379,27 +381,17 @@ class TorrentBot(ContextDecorator):
             torrents_soup = None
             torrent_infos = None
             try:
-                proxy_config = self.config.get_proxy_config("proxy")
-                proxy = (
-                    {}
-                    if proxy_config["proxy-enable"] is False
-                    else {
-                        "https": proxy_config["proxy-username"]
-                        + ":"
-                        + proxy_config["proxy-password"]
-                        + "@"
-                        + proxy_config["proxy-host"]
-                        + ":"
-                        + proxy_config["proxy-port"],
-                    }
-                )
+                res = requests.get(self.torrent_url, cookies=self.cookie_jar, headers=self.headers, proxies=config.get_proxy(), allow_redirects=False)
+                if res.status_code == 302:
+                    raise Exception('need login!')
                 torrents_soup = BeautifulSoup(
-                    requests.get(self.torrent_url, cookies=self.cookie_jar, headers=self.headers, proxies=proxy).content,
+                    res.content,
                     features="lxml")
                 flag = True
             except Exception as e:
                 print('[ERROR] ' + repr(e))
-                self.byrbt_cookies = self.login.load_cookie()
+                traceback.print_exc()
+                self.byrbt_cookies = self.login.refresh_cookie()
                 if self.byrbt_cookies is not None:
                     self.cookie_jar = RequestsCookieJar()
                     for k, v in self.byrbt_cookies.items():
@@ -410,10 +402,12 @@ class TorrentBot(ContextDecorator):
                 break
 
             try:
-                user_info_block = torrents_soup.select_one('#info_block').select_one('.bottom')
+                user_info_block = torrents_soup.select_one('#info_block').select_one('.bottom.navbar-user-data')
                 self.get_user_info(user_info_block)
             except Exception as e:
                 print('[ERROR] ' + repr(e))
+                traceback.print_exc()
+                print(torrents_soup.get_text())
 
             try:
                 torrent_table = torrents_soup.select('.torrents > tr')[1:]
@@ -421,6 +415,7 @@ class TorrentBot(ContextDecorator):
                 flag = True
             except Exception as e:
                 print('[ERROR] ' + repr(e))
+                traceback.print_exc()
                 flag = False
 
             if flag is False:
@@ -428,12 +423,12 @@ class TorrentBot(ContextDecorator):
                 break
             print('free torrent list：')
             for i, info in enumerate(torrent_infos):
-                print('{} : {} {} {}'.format(i, info['seed_id'], info['file_size'], info['title']))
+                print('{} : {} {}/{} {} {}'.format(i, info['seed_id'], info['downloading'], info['seeding'], info['file_size'], info['title']))
 
             ok_torrent = self.get_ok_torrent(torrent_infos)
             print('available torrent list：')
             for i, info in enumerate(ok_torrent):
-                print('{} : {} {} {}'.format(i, info['seed_id'], info['file_size'], info['title']))
+                print('{} : {} {}/{} {} {}'.format(i, info['seed_id'], info['downloading'], info['seeding'], info['file_size'], info['title']))
             self.check_remove(add_num=len(ok_torrent))
             for torrent in ok_torrent:
                 if self.download(torrent['seed_id']) is False:

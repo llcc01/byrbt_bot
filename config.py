@@ -30,6 +30,7 @@ class ReadConfig:
         self.cf = configparser.ConfigParser()
         self.cf.read(config_path, encoding='utf8')
         _print_config(self.cf)
+        print(self.get_proxy())
 
     def get_bot_config(self, param):
         value = self.cf.get("ByrBTBot", param, fallback=None)
@@ -39,9 +40,23 @@ class ReadConfig:
         value = self.cf.get("Transmission", param, fallback=None)
         return value
     
-    def get_proxy_config(self, param):
-        value = self.cf.get("Proxy", param, fallback=None)
-        return value
+    def get_proxy(self):
+        proxy = (
+            None
+            if self.cf.get("Proxy", 'proxy-enable') != "1"
+            else {
+                "https": self.cf.get("Proxy", 'proxy-type')
+                + "://"
+                + self.cf.get("Proxy", 'proxy-username')
+                + ":"
+                + self.cf.get("Proxy", 'proxy-password')
+                + "@"
+                + self.cf.get("Proxy", 'proxy-host')
+                + ":"
+                + self.cf.get("Proxy", 'proxy-port'),
+            }
+        )
+        return proxy
 
 
 if __name__ == '__main__':

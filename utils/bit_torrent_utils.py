@@ -10,6 +10,7 @@
 from config import ReadConfig
 from transmission_rpc import Client
 import time
+import traceback
 
 
 class BitTorrent:
@@ -31,6 +32,7 @@ class BitTorrent:
                 return c.get_torrent(res.id)
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return None
 
     def download_from_content(self, content, paused=False):
@@ -43,6 +45,7 @@ class BitTorrent:
             return c.get_torrent(res.id)
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return None
 
     def remove(self, ids, delete_data=False):
@@ -52,6 +55,7 @@ class BitTorrent:
             return True
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return False
 
     def start_torrent(self, ids):
@@ -61,6 +65,7 @@ class BitTorrent:
             return True
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return False
 
     def get_list(self):
@@ -69,6 +74,7 @@ class BitTorrent:
             return c.get_torrents(timeout=(60, 120))
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return None
 
     def get_free_space(self):
@@ -77,6 +83,7 @@ class BitTorrent:
             return c.free_space(self.download_path, timeout=(60, 120))
         except Exception as e:
             print('[ERROR] ' + repr(e))
+            traceback.print_exc()
             return None
 
 
